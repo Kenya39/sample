@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>固定資産税評価 WebGIS | 国土地理院地形図</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet.draw -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header id="app-header">
+    <div class="header-title">
+      <span class="header-icon">🗾</span>
+      <div>
+        <h1>固定資産税評価 WebGIS</h1>
+        <p>国土地理院地形図ベース 土地評価マイクロサービス連携</p>
+      </div>
+    </div>
+    <div id="api-status">
+      <span id="status-dot" class="dot dot-checking"></span>
+      <span id="status-label">API確認中...</span>
+    </div>
+  </header>
+
+  <div id="main-layout">
+
+    <!-- ===== MAP ===== -->
+    <div id="map-container">
+      <div id="map"></div>
+      <div id="map-toolbar">
+        <button id="btn-draw" class="toolbar-btn" title="土地区画を描画">✏️ 区画描画</button>
+        <button id="btn-clear" class="toolbar-btn" title="描画をクリア">🗑️ クリア</button>
+        <div class="toolbar-sep"></div>
+        <button id="btn-locate" class="toolbar-btn" title="現在地へ">📍 現在地</button>
+      </div>
+    </div>
+
+    <!-- ===== SIDE PANEL ===== -->
+    <aside id="side-panel">
+
+      <div id="panel-tabs">
+        <button class="tab-btn active" data-tab="input">入力</button>
+        <button class="tab-btn" data-tab="result">評価結果</button>
+        <button class="tab-btn" data-tab="help">使い方</button>
+      </div>
+
+      <!-- INPUT TAB -->
+      <div class="tab-content active" id="tab-input">
+        <form id="eval-form" novalidate>
+
+          <!-- 土地基本情報 -->
+          <section class="form-section">
+            <h2 class="section-title">🏡 土地基本情報</h2>
+
+            <div class="form-row">
+              <label for="land-category">地目</label>
+              <select id="land-category">
+                <option value="residential_small">宅地 – 小規模住宅用地（200㎡以下）</option>
+                <option value="residential_general">宅地 – 一般住宅用地（200㎡超）</option>
+                <option value="commercial">宅地 – 商業用</option>
+                <option value="agricultural">農地（田・畑）</option>
+                <option value="forest">山林</option>
+                <option value="other">その他</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <label for="land-area">
+                地積（㎡）
+                <span id="area-from-map" class="badge badge-info" style="display:none">地図から取得</span>
+              </label>
+              <div class="input-with-unit">
+                <input type="number" id="land-area" placeholder="例: 200" min="0" step="0.01" />
+                <span class="unit">㎡</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <label for="address">所在地（任意）</label>
+              <input type="text" id="address" placeholder="例: 東京都千代田区..." />
+            </div>
+
+            <div class="form-row">
+              <label for="zone-type">用途地域</label>
+              <select id="zone-type">
+                <option value="commercial_high">高度商業・繁華街地区</option>
+                <option value="commercial_normal">普通商業・併用住宅地区</option>
+                <option value="residential" selected>普通住宅・中小工場地区</option>
+                <option value="large_factory">大工場地区</option>
+                <option value="building">ビル街地区</option>
+              </select>
+            </div>
+          </section>
+
+          <!-- 路線価 -->
+          <section class="form-section" id="road-price-section">
+            <h2 class="section-title">🛣️ 路線価情報</h2>
+
+            <div class="form-row">
+              <label for="road-price">
+                正面路線価（円/㎡）
+                <a href="https://www.rosenka.nta.go.jp/" target="_blank" class="ref-link">路線価図 ↗</a>
+              </label>
+              <div class="input-with-unit">
+                <input type="number" id="road-price" placeholder="例: 500000" min="0" />
+                <span class="unit">円/㎡</span>
+              </div>
+            </div>
+
+            <div class="form-row two-col">
+              <div>
+                <label for="frontage">間口距離（m）</label>
+                <div class="input-with-unit">
+                  <input type="number" id="frontage" placeholder="例: 10" min="0" step="0.1" />
+                  <span class="unit">m</span>
+                </div>
+              </div>
+              <div>
+                <label for="depth">奥行距離（m）</label>
+                <div class="input-with-unit">
+                  <input type="number" id="depth" placeholder="例: 20" min="0" step="0.1" />
+                  <span class="unit">m</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row checkbox-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="is-corner" />
+                <span>角地</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="is-irregular" />
+                <span>不整形地</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="is-no-road" />
+                <span>無道路地</span>
+              </label>
+            </div>
+
+            <div class="form-row" id="side-road-row" style="display:none">
+              <label for="side-road-price">側方路線価（円/㎡）</label>
+              <div class="input-with-unit">
+                <input type="number" id="side-road-price" placeholder="例: 300000" min="0" />
+                <span class="unit">円/㎡</span>
+              </div>
+            </div>
+
+            <div class="form-row" id="irregular-rate-row" style="display:none">
+              <label for="irregular-rate">不整形地補正率（0.60〜1.00）</label>
+              <input type="number" id="irregular-rate" value="0.90" min="0.60" max="1.00" step="0.01" />
+            </div>
+          </section>
+
+          <!-- 都市計画 -->
+          <section class="form-section">
+            <h2 class="section-title">🏙️ 都市計画・税率</h2>
+
+            <div class="form-row checkbox-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="city-plan-area" />
+                <span>都市計画区域内（都市計画税あり）</span>
+              </label>
+            </div>
+
+            <div class="form-row">
+              <label for="tax-rate">固定資産税率（通常 1.4%）</label>
+              <div class="input-with-unit">
+                <input type="number" id="tax-rate" value="1.4" min="0" max="10" step="0.1" />
+                <span class="unit">%</span>
+              </div>
+            </div>
+
+            <div class="form-row" id="city-plan-rate-row" style="display:none">
+              <label for="city-plan-rate">都市計画税率（通常 0.3%）</label>
+              <div class="input-with-unit">
+                <input type="number" id="city-plan-rate" value="0.3" min="0" max="1" step="0.1" />
+                <span class="unit">%</span>
+              </div>
+            </div>
+          </section>
+
+          <div class="form-actions">
+            <button type="submit" id="evaluate-btn" class="btn-primary">
+              💹 評価額を計算する
+            </button>
+          </div>
+
+        </form>
+      </div>
+
+      <!-- RESULT TAB -->
+      <div class="tab-content" id="tab-result">
+        <div id="result-placeholder" class="placeholder-msg">
+          「入力」タブで情報を入力して<br/>評価額を計算してください
+        </div>
+        <div id="result-content" style="display:none"></div>
+      </div>
+
+      <!-- HELP TAB -->
+      <div class="tab-content" id="tab-help">
+        <div class="help-content">
+          <h3>操作方法</h3>
+          <ol>
+            <li>地図上の「区画描画」ボタンをクリックし、土地の区画をポリゴンで描きます。描画が完了すると地積が自動入力されます。</li>
+            <li>地目・路線価・間口・奥行などの情報を入力してください。</li>
+            <li>「評価額を計算する」ボタンを押すと、マイクロサービスAPIが評価結果を返します。</li>
+          </ol>
+
+          <h3>計算方式</h3>
+          <p><strong>宅地（路線価方式）:</strong></p>
+          <pre>評価額 = 正面路線価 × 奥行価格補正率
+        × 各種補正率 × 地積</pre>
+          <p><strong>住宅用地特例（課税標準の軽減）:</strong></p>
+          <ul>
+            <li>小規模住宅用地（200㎡以下） → 評価額 × 1/6</li>
+            <li>一般住宅用地（200㎡超）→ 評価額 × 1/3</li>
+          </ul>
+          <p><strong>税額:</strong></p>
+          <pre>固定資産税 = 課税標準額 × 1.4%
+都市計画税 = 課税標準額 × 0.3%</pre>
+
+          <h3>地図データ出典</h3>
+          <p>背景地図は国土地理院タイル（標準地図・淡色地図・写真）を使用しています。<br/>
+          © <a href="https://www.gsi.go.jp/" target="_blank">国土地理院</a></p>
+
+          <h3>APIエンドポイント</h3>
+          <p>マイクロサービスURL: <code id="api-url-display">http://localhost:8000</code></p>
+          <ul>
+            <li><code>POST /api/evaluate</code> – 土地評価</li>
+            <li><code>GET /api/health</code> – ヘルスチェック</li>
+            <li><code>GET /docs</code> – Swagger UI</li>
+          </ul>
+        </div>
+      </div>
+
+    </aside>
+  </div>
+
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Leaflet.draw -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+  <!-- Turf.js (area calculation) -->
+  <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

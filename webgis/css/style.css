@@ -1,0 +1,496 @@
+/* ===================================================
+   固定資産税評価 WebGIS – Stylesheet
+   =================================================== */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary:      #1a6e38;
+  --primary-dark: #145a2c;
+  --primary-light:#e8f5e9;
+  --accent:       #ff6f00;
+  --bg:           #f4f6f8;
+  --surface:      #ffffff;
+  --border:       #dde2e7;
+  --text:         #1e2a38;
+  --text-muted:   #6b7885;
+  --danger:       #c62828;
+  --success:      #2e7d32;
+  --info:         #0277bd;
+  --shadow-sm:    0 1px 4px rgba(0,0,0,.12);
+  --shadow-md:    0 4px 16px rgba(0,0,0,.14);
+  --radius:       8px;
+  --panel-w:      420px;
+  --header-h:     56px;
+}
+
+html, body {
+  height: 100%;
+  font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* ===== HEADER ===== */
+#app-header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--header-h);
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 1100;
+  box-shadow: var(--shadow-md);
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-icon { font-size: 24px; }
+
+#app-header h1 {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+#app-header p {
+  font-size: 11px;
+  opacity: .8;
+}
+
+#api-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  background: rgba(0,0,0,.2);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+.dot-checking  { background: #ffd54f; animation: pulse 1s infinite; }
+.dot-ok        { background: #69f0ae; }
+.dot-error     { background: #ef9a9a; }
+
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50%      { opacity: .4; }
+}
+
+/* ===== MAIN LAYOUT ===== */
+#main-layout {
+  position: fixed;
+  top: var(--header-h);
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+}
+
+/* ===== MAP ===== */
+#map-container {
+  flex: 1;
+  position: relative;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+#map-toolbar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  background: var(--surface);
+  border-radius: 24px;
+  padding: 6px 10px;
+  box-shadow: var(--shadow-md);
+  z-index: 500;
+}
+
+.toolbar-btn {
+  border: none;
+  background: none;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 18px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s;
+  color: var(--text);
+}
+
+.toolbar-btn:hover { background: var(--bg); }
+.toolbar-btn.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.toolbar-sep {
+  width: 1px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* ===== SIDE PANEL ===== */
+#side-panel {
+  width: var(--panel-w);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: -2px 0 8px rgba(0,0,0,.08);
+  z-index: 200;
+}
+
+/* ===== TABS ===== */
+#panel-tabs {
+  display: flex;
+  border-bottom: 2px solid var(--border);
+  flex-shrink: 0;
+}
+
+.tab-btn {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 12px 0;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: color .15s, border-color .15s;
+}
+
+.tab-btn:hover { color: var(--primary); }
+.tab-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.tab-content {
+  display: none;
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+.tab-content.active { display: block; }
+
+/* ===== FORM ===== */
+.form-section {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+
+.form-row {
+  margin-bottom: 10px;
+}
+
+.form-row label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.form-row input[type="text"],
+.form-row input[type="number"],
+.form-row select {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color .15s;
+}
+
+.form-row input:focus,
+.form-row select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(26,110,56,.15);
+}
+
+.input-with-unit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.input-with-unit input { flex: 1; }
+
+.unit {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.checkbox-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.checkbox-label {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px !important;
+  color: var(--text) !important;
+  font-weight: normal !important;
+  margin-bottom: 0 !important;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 15px; height: 15px;
+  accent-color: var(--primary);
+}
+
+.badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.badge-info {
+  background: var(--info);
+  color: #fff;
+}
+
+.ref-link {
+  font-size: 11px;
+  color: var(--info);
+  text-decoration: none;
+  margin-left: 6px;
+}
+
+.form-actions {
+  margin-top: 4px;
+  padding-bottom: 8px;
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 12px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-primary:disabled {
+  background: #9e9e9e;
+  cursor: not-allowed;
+}
+
+/* ===== RESULT ===== */
+.placeholder-msg {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 40px 20px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.result-card {
+  background: var(--primary-light);
+  border: 1px solid #a5d6a7;
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.result-card.accent {
+  background: #fff8e1;
+  border-color: #ffe082;
+}
+
+.result-card h3 {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.result-amount {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.result-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.result-table th,
+.result-table td {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.result-table th {
+  background: var(--bg);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.result-table tr:last-child td {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.result-disclaimer {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: #f5f5f5;
+  border-radius: 6px;
+  padding: 8px 10px;
+  line-height: 1.6;
+  margin-top: 12px;
+}
+
+/* ===== HELP ===== */
+.help-content h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 14px 0 6px;
+}
+
+.help-content h3:first-child { margin-top: 0; }
+
+.help-content ol,
+.help-content ul {
+  padding-left: 18px;
+  line-height: 2;
+  font-size: 13px;
+}
+
+.help-content pre {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  overflow-x: auto;
+  margin: 6px 0;
+}
+
+.help-content code {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12px;
+}
+
+.help-content a {
+  color: var(--info);
+}
+
+.help-content p {
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 6px 0;
+}
+
+/* ===== LOADING SPINNER ===== */
+.spinner {
+  display: inline-block;
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== MAP POPUP ===== */
+.leaflet-popup-content {
+  font-family: "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+  font-size: 13px;
+}
+
+.popup-area {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  :root { --panel-w: 100vw; }
+  #main-layout { flex-direction: column; }
+  #map-container { height: 50vh; }
+  #side-panel {
+    width: 100%;
+    height: 50vh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+}
