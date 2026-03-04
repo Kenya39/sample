@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OSM道路データビューア</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", sans-serif; }
+
+    #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+
+    #sidebar {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.95);
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+      width: 300px;
+      max-height: calc(100vh - 20px);
+      overflow-y: auto;
+    }
+
+    #sidebar h1 {
+      font-size: 14px;
+      font-weight: bold;
+      padding: 12px 14px 8px;
+      border-bottom: 1px solid #e0e0e0;
+      color: #333;
+    }
+
+    .section {
+      padding: 10px 14px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .section label {
+      display: block;
+      font-size: 12px;
+      font-weight: bold;
+      color: #555;
+      margin-bottom: 6px;
+    }
+
+    #file-input {
+      width: 100%;
+      font-size: 12px;
+    }
+
+    #load-btn {
+      margin-top: 6px;
+      width: 100%;
+      padding: 7px;
+      background: #0078d4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    #load-btn:hover { background: #005fa3; }
+
+    #url-input {
+      width: 100%;
+      padding: 5px 8px;
+      font-size: 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    #url-btn {
+      margin-top: 6px;
+      width: 100%;
+      padding: 7px;
+      background: #107c10;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    #url-btn:hover { background: #0a5a0a; }
+
+    #stats {
+      font-size: 12px;
+      color: #444;
+    }
+    #stats .stat-row { display: flex; justify-content: space-between; margin: 2px 0; }
+    #stats .stat-val { font-weight: bold; }
+
+    #legend { font-size: 12px; }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin: 3px 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .legend-item:hover { opacity: 0.75; }
+    .legend-swatch {
+      width: 28px;
+      height: 4px;
+      border-radius: 2px;
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+    .legend-item.hidden .legend-swatch { opacity: 0.3; }
+    .legend-item.hidden span { text-decoration: line-through; color: #aaa; }
+
+    #filter-section label { margin-bottom: 4px; }
+    .filter-checkbox { margin-right: 6px; }
+
+    #popup-info {
+      font-size: 12px;
+      color: #333;
+      min-height: 20px;
+    }
+    #popup-info table { width: 100%; border-collapse: collapse; }
+    #popup-info td {
+      padding: 2px 4px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    #popup-info td:first-child { color: #666; width: 90px; }
+
+    #status {
+      font-size: 11px;
+      color: #888;
+      padding: 6px 14px;
+      min-height: 24px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="sidebar">
+  <h1>OSM 道路データビューア</h1>
+
+  <!-- ファイル読み込み -->
+  <div class="section">
+    <label>GeoJSONファイルを開く</label>
+    <input type="file" id="file-input" accept=".geojson,.json" />
+    <button id="load-btn" onclick="loadFile()">読み込む</button>
+  </div>
+
+  <!-- URL読み込み -->
+  <div class="section">
+    <label>URLから読み込む</label>
+    <input type="text" id="url-input" placeholder="https://example.com/roads.geojson" />
+    <button id="url-btn" onclick="loadUrl()">取得して読み込む</button>
+  </div>
+
+  <!-- 統計 -->
+  <div class="section">
+    <label>統計</label>
+    <div id="stats">
+      <div class="stat-row"><span>道路数</span><span class="stat-val" id="stat-count">-</span></div>
+      <div class="stat-row"><span>表示中</span><span class="stat-val" id="stat-visible">-</span></div>
+    </div>
+  </div>
+
+  <!-- 凡例 / 表示切替 -->
+  <div class="section">
+    <label>道路種別（クリックで表示切替）</label>
+    <div id="legend"></div>
+  </div>
+
+  <!-- 選択した道路の情報 -->
+  <div class="section">
+    <label>選択道路の属性</label>
+    <div id="popup-info">道路をクリックしてください</div>
+  </div>
+
+  <div id="status">ファイルまたはURLを指定してください</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ---------------------------------------------------------------------------
+// 地図初期化（日本中心）
+// ---------------------------------------------------------------------------
+const map = L.map("map").setView([36.5, 137.5], 6);
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  maxZoom: 19,
+}).addTo(map);
+
+// ---------------------------------------------------------------------------
+// 道路種別カラー定義
+// ---------------------------------------------------------------------------
+const ROAD_COLORS = {
+  motorway:        "#e31a1c",   // 赤：高速道路
+  motorway_link:   "#fc4e2a",
+  trunk:           "#fd8d3c",   // オレンジ：国道（自動車専用）
+  trunk_link:      "#feb24c",
+  primary:         "#f03b20",   // 濃いオレンジ：国道
+  primary_link:    "#f03b20",
+  secondary:       "#feb24c",   // 黄：都道府県道
+  secondary_link:  "#feb24c",
+  tertiary:        "#ffffb2",   // 黄緑：市町村道
+  tertiary_link:   "#c7e9b4",
+  residential:     "#74c476",   // 緑：住宅地
+  unclassified:    "#a1d99b",
+  service:         "#cccccc",   // グレー
+  living_street:   "#9ecae1",
+  pedestrian:      "#6baed6",
+  track:           "#8c510a",   // 茶：農道
+  road:            "#969696",
+};
+
+const DEFAULT_COLOR = "#aaaaaa";
+
+const ROAD_LABELS = {
+  motorway:      "高速道路",
+  motorway_link: "高速道路ランプ",
+  trunk:         "国道（自動車専用）",
+  trunk_link:    "国道ランプ",
+  primary:       "国道",
+  primary_link:  "国道ランプ",
+  secondary:     "都道府県道",
+  secondary_link:"都道府県道ランプ",
+  tertiary:      "市町村道（主要）",
+  tertiary_link: "市町村道ランプ",
+  residential:   "住宅地道路",
+  unclassified:  "未分類道路",
+  service:       "サービス道路",
+  living_street: "生活道路",
+  pedestrian:    "歩行者専用",
+  track:         "農道・林道",
+  road:          "道路（未分類）",
+};
+
+function roadColor(highway) {
+  return ROAD_COLORS[highway] || DEFAULT_COLOR;
+}
+
+function roadWeight(highway) {
+  if (["motorway","trunk"].includes(highway)) return 4;
+  if (["primary","secondary"].includes(highway)) return 3;
+  if (["tertiary","residential","unclassified"].includes(highway)) return 2;
+  return 1.5;
+}
+
+// ---------------------------------------------------------------------------
+// データ管理
+// ---------------------------------------------------------------------------
+let geojsonLayer = null;
+let hiddenTypes = new Set();
+let allFeatures = [];
+
+function setStatus(msg, isError = false) {
+  const el = document.getElementById("status");
+  el.textContent = msg;
+  el.style.color = isError ? "#c00" : "#888";
+}
+
+function loadGeoJSON(data) {
+  if (geojsonLayer) {
+    map.removeLayer(geojsonLayer);
+    geojsonLayer = null;
+  }
+
+  allFeatures = data.features || [];
+  const totalCount = allFeatures.length;
+
+  if (totalCount === 0) {
+    setStatus("道路データがありません", true);
+    return;
+  }
+
+  // 道路種別の一覧を収集
+  const typeCounts = {};
+  for (const f of allFeatures) {
+    const hw = (f.properties && f.properties.highway) || "unknown";
+    typeCounts[hw] = (typeCounts[hw] || 0) + 1;
+  }
+
+  buildLegend(typeCounts);
+  renderLayer();
+  updateStats();
+  setStatus(`${totalCount.toLocaleString()} 本の道路を読み込みました`);
+}
+
+function renderLayer() {
+  if (geojsonLayer) {
+    map.removeLayer(geojsonLayer);
+  }
+
+  const visible = allFeatures.filter(f => {
+    const hw = (f.properties && f.properties.highway) || "unknown";
+    return !hiddenTypes.has(hw);
+  });
+
+  geojsonLayer = L.geoJSON({ type: "FeatureCollection", features: visible }, {
+    style(feature) {
+      const hw = (feature.properties && feature.properties.highway) || "unknown";
+      return {
+        color: roadColor(hw),
+        weight: roadWeight(hw),
+        opacity: 0.85,
+      };
+    },
+    onEachFeature(feature, layer) {
+      layer.on("click", () => showPopup(feature.properties));
+      layer.on("mouseover", function () {
+        this.setStyle({ opacity: 1, weight: this.options.weight + 2 });
+      });
+      layer.on("mouseout", function () {
+        this.setStyle({ opacity: 0.85, weight: roadWeight((feature.properties||{}).highway) });
+      });
+    },
+  }).addTo(map);
+
+  updateStats();
+}
+
+function updateStats() {
+  const visible = allFeatures.filter(f => {
+    const hw = (f.properties && f.properties.highway) || "unknown";
+    return !hiddenTypes.has(hw);
+  });
+  document.getElementById("stat-count").textContent = allFeatures.length.toLocaleString();
+  document.getElementById("stat-visible").textContent = visible.length.toLocaleString();
+}
+
+// ---------------------------------------------------------------------------
+// 凡例
+// ---------------------------------------------------------------------------
+function buildLegend(typeCounts) {
+  const container = document.getElementById("legend");
+  container.innerHTML = "";
+
+  // 順序付き表示（重要なものを先）
+  const order = [
+    "motorway","motorway_link","trunk","trunk_link",
+    "primary","primary_link","secondary","secondary_link",
+    "tertiary","tertiary_link","residential","unclassified",
+    "service","living_street","pedestrian","track","road",
+  ];
+
+  const sorted = [
+    ...order.filter(k => k in typeCounts),
+    ...Object.keys(typeCounts).filter(k => !order.includes(k)),
+  ];
+
+  for (const hw of sorted) {
+    const count = typeCounts[hw];
+    const color = roadColor(hw);
+    const label = ROAD_LABELS[hw] || hw;
+
+    const item = document.createElement("div");
+    item.className = "legend-item";
+    item.dataset.hw = hw;
+    item.innerHTML = `
+      <div class="legend-swatch" style="background:${color}"></div>
+      <span>${label} (${count.toLocaleString()})</span>
+    `;
+    item.addEventListener("click", () => toggleType(hw, item));
+    container.appendChild(item);
+  }
+}
+
+function toggleType(hw, item) {
+  if (hiddenTypes.has(hw)) {
+    hiddenTypes.delete(hw);
+    item.classList.remove("hidden");
+  } else {
+    hiddenTypes.add(hw);
+    item.classList.add("hidden");
+  }
+  renderLayer();
+}
+
+// ---------------------------------------------------------------------------
+// 属性表示
+// ---------------------------------------------------------------------------
+function showPopup(props) {
+  if (!props) return;
+  const rows = [
+    ["OSM ID",     props.osm_id],
+    ["種別",        props.highway_label || props.highway],
+    ["名称",        props.name],
+    ["英語名",      props.name_en],
+    ["路線番号",    props.ref],
+    ["車線数",      props.lanes],
+    ["制限速度",    props.maxspeed ? props.maxspeed + " km/h" : ""],
+    ["路面",        props.surface],
+    ["一方通行",    props.oneway],
+  ];
+
+  const trs = rows
+    .filter(([, v]) => v !== undefined && v !== null && v !== "")
+    .map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`)
+    .join("");
+
+  document.getElementById("popup-info").innerHTML =
+    `<table>${trs}</table>`;
+}
+
+// ---------------------------------------------------------------------------
+// ファイル読み込み
+// ---------------------------------------------------------------------------
+function loadFile() {
+  const input = document.getElementById("file-input");
+  if (!input.files.length) {
+    setStatus("ファイルを選択してください", true);
+    return;
+  }
+  const file = input.files[0];
+  setStatus(`${file.name} を読み込み中...`);
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      loadGeoJSON(data);
+      if (geojsonLayer) {
+        map.fitBounds(geojsonLayer.getBounds(), { padding: [20, 20] });
+      }
+    } catch (err) {
+      setStatus("JSONの解析に失敗しました: " + err.message, true);
+    }
+  };
+  reader.readAsText(file, "UTF-8");
+}
+
+// ---------------------------------------------------------------------------
+// URL読み込み
+// ---------------------------------------------------------------------------
+function loadUrl() {
+  const url = document.getElementById("url-input").value.trim();
+  if (!url) {
+    setStatus("URLを入力してください", true);
+    return;
+  }
+  setStatus("データを取得中...");
+
+  fetch(url)
+    .then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
+    .then(data => {
+      loadGeoJSON(data);
+      if (geojsonLayer) {
+        map.fitBounds(geojsonLayer.getBounds(), { padding: [20, 20] });
+      }
+    })
+    .catch(err => setStatus("取得失敗: " + err.message, true));
+}
+
+// ---------------------------------------------------------------------------
+// ドラッグ＆ドロップ対応
+// ---------------------------------------------------------------------------
+document.addEventListener("dragover", e => e.preventDefault());
+document.addEventListener("drop", e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  setStatus(`${file.name} を読み込み中...`);
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      loadGeoJSON(data);
+      if (geojsonLayer) {
+        map.fitBounds(geojsonLayer.getBounds(), { padding: [20, 20] });
+      }
+    } catch (err) {
+      setStatus("JSONの解析に失敗しました: " + err.message, true);
+    }
+  };
+  reader.readAsText(file, "UTF-8");
+});
+</script>
+</body>
+</html>

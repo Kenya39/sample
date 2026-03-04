@@ -1,0 +1,10 @@
+# OSM道路ダウンローダー 依存パッケージ
+
+# HTTP通信（必須）
+requests>=2.31.0
+
+# PostGIS格納用（--output postgis 使用時）
+psycopg2-binary>=2.9.0
+
+# MariaDB格納用（--output mariadb 使用時）
+mysql-connector-python>=8.0.0
