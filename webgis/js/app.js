@@ -24,7 +24,8 @@ const GSI_LAYERS = {
     {
       attribution: CONFIG.GSI_ATTRIBUTION,
       minZoom: 2,
-      maxZoom: 18,
+      maxNativeZoom: 18,  // タイル配信上限
+      maxZoom: 22,        // 拡大表示上限（タイルを拡大レンダリング）
     }
   ),
   '淡色地図': L.tileLayer(
@@ -32,7 +33,8 @@ const GSI_LAYERS = {
     {
       attribution: CONFIG.GSI_ATTRIBUTION,
       minZoom: 2,
-      maxZoom: 18,
+      maxNativeZoom: 18,
+      maxZoom: 22,
     }
   ),
   '写真（シームレス）': L.tileLayer(
@@ -40,7 +42,8 @@ const GSI_LAYERS = {
     {
       attribution: CONFIG.GSI_ATTRIBUTION,
       minZoom: 2,
-      maxZoom: 18,
+      maxNativeZoom: 18,
+      maxZoom: 22,
     }
   ),
   '色別標高図': L.tileLayer(
@@ -48,7 +51,8 @@ const GSI_LAYERS = {
     {
       attribution: CONFIG.GSI_ATTRIBUTION,
       minZoom: 2,
-      maxZoom: 15,
+      maxNativeZoom: 15,  // タイル配信上限
+      maxZoom: 22,
       opacity: 0.7,
     }
   ),
@@ -60,7 +64,8 @@ const GSI_OVERLAYS = {
     {
       attribution: CONFIG.GSI_ATTRIBUTION,
       minZoom: 10,
-      maxZoom: 14,
+      maxNativeZoom: 14,  // タイル配信上限
+      maxZoom: 22,
       opacity: 0.6,
     }
   ),
@@ -73,6 +78,7 @@ const map = L.map('map', {
   center: CONFIG.MAP_CENTER,
   zoom: CONFIG.MAP_ZOOM,
   zoomControl: true,
+  maxZoom: 22,
 });
 
 // デフォルトレイヤー (標準地図)
