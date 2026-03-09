@@ -8,11 +8,23 @@
 // -------------------------------------------------------
 // 設定
 // -------------------------------------------------------
+// API ベース URL の自動判別
+// - Docker Compose (nginx) 経由のアクセス → 相対パス '' を使用
+//   nginx が /api/ → FastAPI へリバースプロキシする
+// - nginx なしのローカル開発 (python -m http.server 等) → localhost:8000 を直接指定
+//   ポート 8080 以外で動いている場合、または明示的に上書きしたい場合は
+//   window.APP_API_BASE = 'http://サーバーIP:8000' をこのファイルの前に定義する
+function resolveApiBase() {
+  if (typeof window.APP_API_BASE !== 'undefined') return window.APP_API_BASE;
+  // nginx 標準ポート (80, 443) または Docker Compose のデフォルト 8080 なら相対パス
+  const port = window.location.port;
+  if (port === '8080' || port === '80' || port === '443' || port === '') return '';
+  // それ以外（python -m http.server 等）は FastAPI に直接アクセス
+  return `${window.location.protocol}//${window.location.hostname}:8000`;
+}
+
 const CONFIG = {
-  // 空文字（相対パス）にすることで、どのPCからアクセスしても
-  // WebGIS を配信している同じサーバーの /api/ へリクエストが飛ぶ。
-  // nginx が /api/ → FastAPI へリバースプロキシする。
-  API_BASE: '',
+  API_BASE: resolveApiBase(),
   MAP_CENTER: [36.0, 138.0],  // 日本中心付近
   MAP_ZOOM: 6,
   GSI_ATTRIBUTION: '© <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>',
