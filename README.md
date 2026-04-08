@@ -1,110 +1,83 @@
 # 固定資産税評価 WebGIS
 
 国土地理院が公開している地形図タイルを背景地図として使用した WebGIS と、
-そこから呼び出して固定資産税の土地評価を行うマイクロサービスです。
+固定資産税の土地評価を行う API を **Node.js 単一モジュール**で提供するサーバーです。
 
 ## アーキテクチャ
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│                      ブラウザ (WebGIS)                      │
-│  ┌──────────────────────┐  ┌──────────────────────────┐    │
-│  │   Leaflet.js マップ  │  │  サイドパネル（入力フォーム）│   │
-│  │  国土地理院タイル     │  │  評価結果表示              │   │
-│  │  標準地図/淡色/写真  │  │                            │   │
-│  │  Leaflet.draw 描画   │  │                            │   │
-│  └──────────────────────┘  └───────────┬────────────────┘    │
-└──────────────────────────────────────── ┼──────────────────┘
-                                          │ POST /api/evaluate
-                                          ▼
-┌──────────────────────────────────────────────────────────────┐
-│              固定資産税評価マイクロサービス (FastAPI)          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │  /api/health │  │ /api/evaluate│  │ /api/correction- │  │
-│  │  ヘルスチェック│  │ 評価額計算  │  │    tables        │  │
-│  └──────────────┘  └──────────────┘  └──────────────────┘  │
-│                        evaluator.py                          │
-│              財産評価基本通達に基づく補正率テーブル             │
-└──────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│                    ブラウザ (WebGIS)                   │
+│  Leaflet.js + 国土地理院タイル + Leaflet.draw          │
+└──────────────────────┬───────────────────────────────┘
+                       │ HTTP (同一オリジン)
+                       ▼
+┌──────────────────────────────────────────────────────┐
+│         Node.js + Express  (server.js)                │
+│                                                      │
+│  GET  /              → public/index.html             │
+│  GET  /api/health    → ヘルスチェック                 │
+│  POST /api/evaluate  → evaluator.js で評価額計算      │
+│  GET  /api/correction-tables → 補正率テーブル          │
+└──────────────────────────────────────────────────────┘
 ```
-
-## 機能
-
-### WebGIS フロントエンド
-- **国土地理院タイルマップ**: 標準地図 / 淡色地図 / 写真 / 色別標高図
-- **レイヤー切り替え**: 地図種別の切り替えコントロール
-- **ポリゴン描画**: Leaflet.draw を使って土地区画を描画し、Turf.js で地積を自動計算
-- **フォーム入力**: 地目・路線価・間口・奥行・角地/不整形地/無道路地フラグ
-- **結果表示**: 評価額・課税標準額・固定資産税・都市計画税の一覧表示
-
-### マイクロサービス (FastAPI)
-- `POST /api/evaluate` — 土地評価額・税額計算
-- `GET  /api/health`   — ヘルスチェック
-- `GET  /api/correction-tables` — 補正率テーブル取得
-- `GET  /docs`         — Swagger UI (OpenAPI)
-
-#### 適用している補正
-| 補正項目 | 根拠 |
-|---|---|
-| 奥行価格補正率 | 財産評価基本通達 別表1 |
-| 間口狭小補正率 | 財産評価基本通達 付表6 |
-| 奥行長大補正率 | 財産評価基本通達 付表7 |
-| 角地加算（側方路線影響加算率） | 財産評価基本通達 付表4 |
-| 不整形地補正率 | ユーザー入力値（0.60〜1.00） |
-| 無道路地補正率 | 評価額の 60% |
-| 住宅用地特例 | 地方税法第349条の3の2 |
 
 ## ディレクトリ構成
 
 ```
 .
-├── webgis/
-│   ├── index.html          # メインページ
-│   ├── css/style.css       # スタイルシート
-│   └── js/app.js           # アプリケーションロジック
-├── microservice/
-│   ├── app.py              # FastAPI アプリケーション
-│   ├── models.py           # Pydantic モデル
-│   ├── evaluator.py        # 評価計算エンジン
-│   ├── requirements.txt    # Python 依存パッケージ
-│   └── Dockerfile
+├── server.js           # Express サーバー（静的配信 + API）
+├── evaluator.js        # 固定資産税評価計算エンジン
+├── package.json
+├── Dockerfile
 ├── docker-compose.yml
-├── nginx.conf
-└── README.md
+└── public/             # WebGIS フロントエンド（静的ファイル）
+    ├── index.html
+    ├── css/style.css
+    └── js/app.js
 ```
 
 ## 起動方法
 
-### Docker Compose（推奨）
+### Node.js 直接起動
+
+```bash
+npm install
+node server.js
+# または開発時（ファイル変更で自動再起動）
+npm run dev
+```
+
+アクセス: http://localhost:8080
+
+### Docker Compose
 
 ```bash
 docker compose up --build
 ```
 
-- WebGIS: http://localhost:8080
-- API: http://localhost:8000
-- Swagger UI: http://localhost:8000/docs
+アクセス: http://localhost:8080
 
-### 個別起動
+### ポート変更
 
 ```bash
-# マイクロサービス
-cd microservice
-pip install -r requirements.txt
-uvicorn app:app --reload --host 0.0.0.0 --port 8000
-
-# WebGIS（別ターミナル）
-cd webgis
-python -m http.server 8080
+PORT=3000 node server.js
 ```
 
-WebGIS を個別起動した場合は `webgis/js/app.js` の `CONFIG.API_BASE` を
-`http://localhost:8000` に設定してください（デフォルト値）。
+## API 仕様
 
-## API 使用例
+### GET /api/health
+
+```json
+{ "status": "ok", "version": "1.0.0" }
+```
+
+### POST /api/evaluate
+
+リクエスト例:
 
 ```bash
-curl -X POST http://localhost:8000/api/evaluate \
+curl -X POST http://localhost:8080/api/evaluate \
   -H "Content-Type: application/json" \
   -d '{
     "land_category": "residential_small",
@@ -123,9 +96,10 @@ curl -X POST http://localhost:8000/api/evaluate \
 ```
 
 レスポンス例:
+
 ```json
 {
-  "land_area": 150.0,
+  "land_area": 150,
   "road_price": 200000,
   "correction_factors": [
     { "name": "奥行価格補正率", "rate": 1.0 },
@@ -142,20 +116,18 @@ curl -X POST http://localhost:8000/api/evaluate \
 }
 ```
 
-## 注意事項
+## 適用している補正（財産評価基本通達準拠）
 
-- 本システムの計算結果はあくまで**概算**です。実際の固定資産税評価額・税額は
-  各市区町村の評価に基づきます。
-- 路線価の入力には国税庁の路線価図（https://www.rosenka.nta.go.jp/）を参照してください。
-- 固定資産税評価用の路線価は相続税評価用と異なる場合があります。
+| 補正項目 | 根拠 |
+|---|---|
+| 奥行価格補正率 | 別表1 |
+| 間口狭小補正率 | 付表6 |
+| 奥行長大補正率 | 付表7 |
+| 角地加算（側方路線影響加算率） | 付表4 |
+| 不整形地補正率 | ユーザー入力（0.60〜1.00） |
+| 無道路地補正率 | 評価額 × 0.60 |
+| 住宅用地特例 | 地方税法第349条の3の2 |
 
 ## 地図データ出典
-
-背景地図は**国土地理院**が公開するタイルデータを使用しています。
-
-- 標準地図: `https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png`
-- 淡色地図: `https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png`
-- 写真: `https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg`
-- 色別標高図: `https://cyberjapandata.gsi.go.jp/xyz/relief/{z}/{x}/{y}.png`
 
 © [国土地理院](https://www.gsi.go.jp/)

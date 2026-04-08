@@ -1,0 +1,13 @@
+{
+  "name": "webgis-property-tax",
+  "version": "1.0.0",
+  "description": "国土地理院地形図ベース WebGIS + 固定資産税評価サーバー",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "npx nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
