@@ -26,16 +26,17 @@ const PORT    = process.env.PORT || 3002;
 
 const app = express();
 
+// リバースプロキシ（nginx / Apache / Caddy 等）経由を信頼する。
+// X-Forwarded-For / X-Forwarded-Proto ヘッダーを正しく解釈するために必要。
+app.set('trust proxy', true);
+
 // -------------------------------------------------------
 // ミドルウェア
 // -------------------------------------------------------
 app.use(express.json());
 
-// 静的ファイル配信（WebGIS フロントエンド）
-app.use(express.static(path.join(__dirname, 'public')));
-
 // -------------------------------------------------------
-// API ルート
+// API ルート（express.static より先に登録し確実に優先させる）
 // -------------------------------------------------------
 
 /** ヘルスチェック */
@@ -104,6 +105,11 @@ app.get('/api/correction-tables', (_req, res) => {
     corner_addition_rates:       CORNER_ADD_RATE,
   });
 });
+
+// -------------------------------------------------------
+// 静的ファイル配信（WebGIS フロントエンド）
+// -------------------------------------------------------
+app.use(express.static(path.join(__dirname, 'public')));
 
 // -------------------------------------------------------
 // SPA フォールバック（直接 URL アクセス対応）

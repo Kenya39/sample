@@ -230,17 +230,25 @@ cityPlan.addEventListener('change', () => {
 async function checkApiHealth() {
   const dot   = document.getElementById('status-dot');
   const label = document.getElementById('status-label');
+
+  // AbortSignal.timeout() は新しいAPIのため、AbortController で代替実装する。
+  // リバースプロキシ経由の遅延を考慮してタイムアウトを 8 秒に設定。
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+
   try {
-    const res = await fetch(`${CONFIG.API_BASE}/api/health`, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(`${CONFIG.API_BASE}/api/health`, { signal: controller.signal });
     if (res.ok) {
       dot.className = 'dot dot-ok';
       label.textContent = 'API 接続済み';
     } else {
-      throw new Error('API error');
+      throw new Error(`HTTP ${res.status}`);
     }
   } catch (_) {
     dot.className = 'dot dot-error';
     label.textContent = 'API オフライン';
+  } finally {
+    clearTimeout(timer);
   }
 }
 
