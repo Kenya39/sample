@@ -19,7 +19,7 @@
       <span class="header-icon">🗾</span>
       <div>
         <h1>固定資産税評価 WebGIS</h1>
-        <p>国土地理院地形図ベース 土地評価マイクロサービス連携</p>
+        <p>国土地理院地形図ベース 固定資産税評価</p>
       </div>
     </div>
     <div id="api-status">
@@ -211,7 +211,7 @@
           <ol>
             <li>地図上の「区画描画」ボタンをクリックし、土地の区画をポリゴンで描きます。描画が完了すると地積が自動入力されます。</li>
             <li>地目・路線価・間口・奥行などの情報を入力してください。</li>
-            <li>「評価額を計算する」ボタンを押すと、マイクロサービスAPIが評価結果を返します。</li>
+            <li>「評価額を計算する」ボタンを押すと、APIが評価結果を返します。</li>
           </ol>
 
           <h3>計算方式</h3>
@@ -232,7 +232,7 @@
           © <a href="https://www.gsi.go.jp/" target="_blank">国土地理院</a></p>
 
           <h3>APIエンドポイント</h3>
-          <p>マイクロサービスURL: <code id="api-url-display">http://localhost:8000</code></p>
+          <p>サーバーURL: <code id="api-url-display">http://localhost:3002</code></p>
           <ul>
             <li><code>POST /api/evaluate</code> – 土地評価</li>
             <li><code>GET /api/health</code> – ヘルスチェック</li>

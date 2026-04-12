@@ -48,7 +48,7 @@ node server.js
 npm run dev
 ```
 
-アクセス: http://localhost:8080
+アクセス: http://localhost:3002
 
 ### Docker Compose
 
@@ -56,7 +56,7 @@ npm run dev
 docker compose up --build
 ```
 
-アクセス: http://localhost:8080
+アクセス: http://localhost:3002
 
 ### ポート変更
 
@@ -77,7 +77,7 @@ PORT=3000 node server.js
 リクエスト例:
 
 ```bash
-curl -X POST http://localhost:8080/api/evaluate \
+curl -X POST http://localhost:3002/api/evaluate \
   -H "Content-Type: application/json" \
   -d '{
     "land_category": "residential_small",

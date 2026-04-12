@@ -22,7 +22,7 @@ const {
 } = require('./evaluator');
 
 const VERSION = '1.0.0';
-const PORT    = process.env.PORT || 8080;
+const PORT    = process.env.PORT || 3002;
 
 const app = express();
 
