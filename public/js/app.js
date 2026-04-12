@@ -9,9 +9,9 @@
 // 設定
 // -------------------------------------------------------
 const CONFIG = {
-  // Express サーバーが静的ファイルと API を同一オリジンで配信するため
-  // 常に相対パスで問題なし（nginx・python http.server 不要）
-  API_BASE: '',
+  // '.' にすることでフェッチURLが ./api/... となりページからの相対パスになる。
+  // サブパス配置のリバースプロキシ（例: http://proxy/gis/）でも正しく解決される。
+  API_BASE: '.',
   MAP_CENTER: [36.0, 138.0],  // 日本中心付近
   MAP_ZOOM: 6,
   GSI_ATTRIBUTION: '© <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>',
@@ -404,5 +404,4 @@ function renderResult(data, payload) {
 // -------------------------------------------------------
 // API URL を help タブに表示（アクセス元のホストを動的に表示）
 // -------------------------------------------------------
-document.getElementById('api-url-display').textContent =
-  window.location.origin + (CONFIG.API_BASE || '');
+document.getElementById('api-url-display').textContent = window.location.href.replace(/\/$/, '');
